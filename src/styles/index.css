@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --paper-bg: #F5F6F5;
+    --paper-warm: #FAF9F5;
+    --ledger-navy: #1F2A44;
+    --ink-black: #1C1E1B;
+    --brass-gold: #C08A2E;
+    --hairline: #D8D6CD;
+  }
+
+  body {
+    background-color: var(--paper-bg);
+    color: var(--ink-black);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-image: 
+      radial-gradient(#d8d6cd 0.85px, transparent 0.85px),
+      linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(245,246,245,0.8));
+    background-size: 24px 24px, 100% 100%;
+    background-attachment: fixed;
+  }
+}
+
+/* Authentic Scalloped / Perforated Ticket Styles */
+.ticket-card {
+  position: relative;
+  background-color: #FAF9F6;
+  border: 2px solid #D8D6CD;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ticket-card:hover {
+  transform: translateY(-3px);
+  border-color: #C08A2E;
+  box-shadow: 0 12px 28px -6px rgba(31, 42, 68, 0.12), 0 4px 10px -2px rgba(31, 42, 68, 0.08);
+}
+
+/* Notch Cutouts for Ticket Stub Effect */
+.ticket-notch-top {
+  position: relative;
+}
+.ticket-notch-top::before, .ticket-notch-top::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--paper-bg);
+  border: 2px solid #D8D6CD;
+  z-index: 10;
+}
+.ticket-notch-top::before { left: -11px; }
+.ticket-notch-top::after { right: -11px; }
+
+.ticket-notch-sides {
+  position: relative;
+}
+.ticket-notch-sides::before, .ticket-notch-sides::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--paper-bg);
+  border: 2px solid #D8D6CD;
+  z-index: 10;
+}
+.ticket-notch-sides::before { left: -13px; }
+.ticket-notch-sides::after { right: -13px; }
+
+/* Perforated dashed divider line */
+.perforated-line {
+  background-image: linear-gradient(to bottom, #C5C3B8 50%, rgba(255,255,255,0) 0%);
+  background-position: right;
+  background-size: 2px 12px;
+  background-repeat: repeat-y;
+}
+
+.perforated-line-h {
+  background-image: linear-gradient(to right, #C5C3B8 50%, rgba(255,255,255,0) 0%);
+  background-position: bottom;
+  background-size: 12px 2px;
+  background-repeat: repeat-x;
+}
+
+/* Rubber Ink Stamp Styles (-3deg tilt, double border, distressed ink look) */
+.stamp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-3deg);
+  border: 2.5px dashed currentColor;
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+  position: relative;
+  user-select: none;
+  text-shadow: 0 0 1px currentColor;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.06));
+}
+
+.stamp-badge-large {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  letter-spacing: 0.16em;
+  transform: rotate(-3.5deg);
+  border: 3.5px double currentColor;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.rubber-stamp-animation {
+  animation: rubberStampSlam 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes rubberStampSlam {
+  0% {
+    transform: scale(2.8) rotate(-18deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(0.92) rotate(-2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-3.5deg);
+    opacity: 1;
+  }
+}
+
+/* Faux Barcode Pattern */
+.barcode-strip {
+  background: repeating-linear-gradient(
+    90deg,
+    #1C1E1B,
+    #1C1E1B 2px,
+    transparent 2px,
+    transparent 4px,
+    #1C1E1B 4px,
+    #1C1E1B 7px,
+    transparent 7px,
+    transparent 9px,
+    #1C1E1B 9px,
+    #1C1E1B 12px,
+    transparent 12px,
+    transparent 15px
+  );
+  height: 28px;
+  width: 100%;
+}
+
+/* Custom Scrollbar for Ledger Panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #EBECE9;
+}
+::-webkit-scrollbar-thumb {
+  background: #C5C3B8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A6A499;
+}
+
+/* Printable Ticket Media Query */
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
