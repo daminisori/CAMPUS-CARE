@@ -12,7 +12,8 @@ import {
   Sparkles,
   ChevronDown,
   Building2,
-  PlusCircle
+  PlusCircle,
+  Lock
 } from 'lucide-react';
 import { soundFX } from '../../utils/audio';
 
@@ -30,13 +31,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const {
     currentUser,
     activeRole,
-    switchRole,
     currentView,
     setCurrentView,
     soundEnabled,
     toggleSound,
     resetDemoData,
     unreadCount,
+    logout,
   } = useComplaints();
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -183,66 +184,74 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Profile Dropdown Menu */}
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-paper-50 text-ink rounded-2xl border-2 border-brass shadow-2xl p-4 z-50 animate-fadeIn">
+                <div className="absolute right-0 mt-2 w-72 bg-paper-50 text-ink rounded-2xl border-2 border-brass shadow-2xl p-4 z-50 animate-fadeIn">
+                  {/* USER INFO */}
                   <div className="flex items-center gap-3 pb-3 border-b border-[#D8D6CD]">
                     <img
                       src={currentUser.avatar}
                       alt={currentUser.name}
-                      className="w-10 h-10 rounded-xl object-cover border border-brass"
+                      className="w-12 h-12 rounded-xl object-cover border border-brass shadow-sm"
                     />
-                    <div>
-                      <div className="font-bold text-sm text-ink font-serif">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-sm text-ink font-serif truncate">
                         {currentUser.name}
                       </div>
-                      <div className="text-[11px] font-mono text-ink-muted">
+                      <div className="text-[11px] font-mono text-ink-muted truncate">
                         {currentUser.email}
                       </div>
-                      <div className="text-[10px] font-mono uppercase bg-brass/10 text-brass-dark font-bold px-1.5 py-0.2 rounded border border-brass/30 inline-block mt-0.5">
-                        Role: {activeRole}
+                      <div className="text-[10px] font-mono uppercase bg-brass/15 text-navy font-bold px-2 py-0.5 rounded border border-brass/40 inline-block mt-1">
+                        ROLE: {activeRole}
                       </div>
                     </div>
                   </div>
 
-                  <div className="py-2 space-y-1 text-xs font-mono">
-                    <div className="px-2 py-1 text-[10px] uppercase font-bold text-ink-muted">
-                      Switch Role Account
+                  {/* ACTIVE ACCOUNT DETAILS */}
+                  <div className="py-3 border-b border-[#D8D6CD] space-y-1.5 text-xs font-mono">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-ink-muted">Session:</span>
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                        Signed In
+                      </span>
                     </div>
-                    <button
-                      onClick={() => {
-                        switchRole('student');
-                        setIsProfileMenuOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-paper-200 transition-colors flex items-center justify-between"
-                    >
-                      <span>🎓 Student (Damini / Aarav)</span>
-                      {activeRole === 'student' && <span className="text-navy font-bold">✓</span>}
-                    </button>
-                    <button
-                      onClick={() => {
-                        switchRole('staff');
-                        setIsProfileMenuOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-paper-200 transition-colors flex items-center justify-between"
-                    >
-                      <span>🔧 Staff (Rajesh Sharma)</span>
-                      {activeRole === 'staff' && <span className="text-navy font-bold">✓</span>}
-                    </button>
-                    <button
-                      onClick={() => {
-                        switchRole('admin');
-                        setIsProfileMenuOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-paper-200 transition-colors flex items-center justify-between"
-                    >
-                      <span>🛡️ Dean / Admin (Dr. Sunita)</span>
-                      {activeRole === 'admin' && <span className="text-navy font-bold">✓</span>}
-                    </button>
+
+                    {'branch' in currentUser && currentUser.branch && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-ink-muted">Branch:</span>
+                        <span className="text-ink font-semibold truncate max-w-[155px]" title={currentUser.branch}>
+                          {currentUser.branch}
+                        </span>
+                      </div>
+                    )}
+
+                    {'room' in currentUser && currentUser.room && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-ink-muted">Room:</span>
+                        <span className="text-ink font-semibold">{currentUser.room}</span>
+                      </div>
+                    )}
+
+                    {'department' in currentUser && currentUser.department && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-ink-muted">Department:</span>
+                        <span className="text-ink font-semibold truncate max-w-[155px]" title={currentUser.department}>
+                          {currentUser.department}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* LOCK NOTICE */}
+                    <div className="mt-2 text-[10px] font-mono text-ink-muted flex items-center gap-1.5 bg-paper-200/80 p-2 rounded-lg border border-[#D8D6CD]">
+                      <Lock className="w-3.5 h-3.5 text-brass flex-shrink-0" />
+                      <span>Account locked to active session. Sign out to switch.</span>
+                    </div>
                   </div>
 
-                  <div className="pt-2 border-t border-[#D8D6CD] flex items-center justify-between">
+                  {/* BOTTOM ACTIONS: AUDIO & SIGN OUT */}
+                  <div className="pt-3 flex items-center justify-between">
                     <button
                       onClick={toggleSound}
-                      className="text-xs font-mono text-ink-muted hover:text-ink flex items-center gap-1.5"
+                      className="text-xs font-mono text-ink-muted hover:text-ink flex items-center gap-1.5 transition-colors"
                     >
                       {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-brass" /> : <VolumeX className="w-3.5 h-3.5 text-ink-faint" />}
                       <span>{soundEnabled ? 'Audio On' : 'Muted'}</span>
@@ -250,10 +259,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     <button
                       onClick={() => {
-                        handleNav('login');
                         setIsProfileMenuOpen(false);
+                        logout();
                       }}
-                      className="text-xs font-mono text-red-700 hover:underline flex items-center gap-1 font-bold"
+                      className="text-xs font-mono text-red-700 hover:text-red-800 hover:bg-red-50 px-2.5 py-1 rounded-lg border border-red-200 flex items-center gap-1.5 font-bold transition-all shadow-sm"
                     >
                       <LogOut className="w-3.5 h-3.5" />
                       <span>Sign Out</span>

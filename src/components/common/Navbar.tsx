@@ -19,7 +19,6 @@ export const Navbar: React.FC = () => {
   const {
     activeRole,
     currentUser,
-    switchRole,
     currentView,
     setCurrentView,
     soundEnabled,
@@ -27,10 +26,6 @@ export const Navbar: React.FC = () => {
     resetDemoData,
     unreadCount,
   } = useComplaints();
-
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    switchRole(e.target.value as UserRole);
-  };
 
   return (
     <header className="sticky top-0 z-40 bg-navy border-b-4 border-brass shadow-md text-paper-100">
@@ -136,24 +131,12 @@ export const Navbar: React.FC = () => {
               <span className="hidden xl:inline">Reset Data</span>
             </button>
 
-            {/* Quick Role Switcher */}
-            <div className="flex items-center bg-navy-light/90 border border-brass/50 rounded-lg p-1">
-              <div className="hidden sm:flex items-center pl-2 pr-1 text-brass text-xs font-mono">
-                {activeRole === 'student' && <GraduationCap className="w-4 h-4 mr-1 text-brass" />}
-                {activeRole === 'staff' && <Wrench className="w-4 h-4 mr-1 text-brass" />}
-                {activeRole === 'admin' && <Shield className="w-4 h-4 mr-1 text-brass" />}
-                <span className="capitalize font-bold text-paper-100">{activeRole}:</span>
-              </div>
-
-              <select
-                value={activeRole}
-                onChange={handleRoleChange}
-                className="bg-navy text-xs font-mono text-paper-100 font-bold px-2 py-1 rounded border border-navy-light focus:outline-none focus:border-brass cursor-pointer"
-              >
-                <option value="student">Student (Aarav)</option>
-                <option value="staff">Staff (Rajesh)</option>
-                <option value="admin">Dean / Admin (Dr. Sunita)</option>
-              </select>
+            {/* Active Account Badge */}
+            <div className="flex items-center bg-navy-light/90 border border-brass/50 rounded-lg px-2.5 py-1 text-brass text-xs font-mono">
+              {activeRole === 'student' && <GraduationCap className="w-4 h-4 mr-1 text-brass" />}
+              {activeRole === 'staff' && <Wrench className="w-4 h-4 mr-1 text-brass" />}
+              {activeRole === 'admin' && <Shield className="w-4 h-4 mr-1 text-brass" />}
+              <span className="capitalize font-bold text-paper-100">{currentUser.name}</span>
             </div>
           </div>
         </div>

@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  student
+  staff
+  admin
+}
+
+enum ComplaintStatus {
+  pending
+  in_review
+  resolved
+  escalated
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum Category {
+  equipment
+  power
+  water
+  sanitation
+  housing
+  network
+  security
+  admin
+}
+
+enum ActorRole {
+  student
+  staff
+  admin
+  system
+}
+
+enum NotificationType {
+  info
+  warning
+  error
+}
+
+model User {
+  id         String      @id @default(cuid())
+  name       String
+  email      String      @unique
+  password   String
+  role       UserRole    @default(student)
+  avatar     String      @default("")
+  department String?
+  branch     String?
+  block      String?
+  room       String?
+  roll       String?
+  complaints Complaint[] @relation("UserComplaints")
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([email])
+  @@index([role])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Complaint {
+  id                 String          @id
+  ticketNumber       String          @unique
+  category           Category
+  title              String
+  description        String
+  location           String
+  block              String
+  roomNo             String
+  department         String
+  priority           Priority        @default(medium)
+  status             ComplaintStatus @default(pending)
+  urgency            String          @default("medium")
+  expectedResolution String?
+  photos             String[]
+  studentName        String
+  studentRoll        String?
+  studentEmail       String?
+  branch             String?
+  assignedStaff      String?
+  userId             String?
+  user               User?           @relation("UserComplaints", fields: [userId], references: [id], onDelete: SetNull)
+  timeline           TimelineEvent[]
+  comments           Comment[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([status])
+  @@index([department])
+  @@index([category])
+  @@index([studentEmail])
+  @@index([priority])
+}
+
+model TimelineEvent {
+  id          String          @id @default(cuid())
+  complaintId String
+  complaint   Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  status      ComplaintStatus
+  title       String
+  description String
+  actor       String
+  actorRole   ActorRole       @default(student)
+  timestamp   DateTime        @default(now())
+
+  @@index([complaintId])
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  author      String
+  authorRole  UserRole  @default(student)
+  avatar      String?
+  text        String
+  isInternal  Boolean   @default(false)
+  timestamp   DateTime  @default(now())
+
+  @@index([complaintId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  message   String
+  type      NotificationType @default(info)
+  createdAt DateTime         @default(now())
+}

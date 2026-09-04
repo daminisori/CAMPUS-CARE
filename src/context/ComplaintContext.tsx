@@ -24,6 +24,7 @@ interface ComplaintContextType {
   resetDemoData: () => void;
   dismissNotification: () => void;
   getComplaintById: (id: string) => Complaint | undefined;
+  logout: () => void;
 }
 
 const DEFAULT_USERS: Record<UserRole, UserProfile> = {
@@ -364,20 +365,12 @@ const INITIAL_COMPLAINTS: Complaint[] = [
   }
 ];
 
+import * as api from '../services/api';
+
 const ComplaintContext = createContext<ComplaintContextType | undefined>(undefined);
 
 export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [complaints, setComplaints] = useState<Complaint[]>(() => {
-    const saved = localStorage.getItem('campus_care_complaints_v1');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return INITIAL_COMPLAINTS;
-      }
-    }
-    return INITIAL_COMPLAINTS;
-  });
+  const [complaints, setComplaints] = useState<Complaint[]>(INITIAL_COMPLAINTS);
 
   const [activeRole, setActiveRole] = useState<UserRole>(() => {
     const savedRole = localStorage.getItem('campus_care_active_role');
@@ -411,21 +404,56 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Sync to LocalStorage
-  useEffect(() => {
-    localStorage.setItem('campus_care_complaints_v1', JSON.stringify(complaints));
-  }, [complaints]);
-
+  // Sync active role to localStorage
   useEffect(() => {
     localStorage.setItem('campus_care_active_role', activeRole);
   }, [activeRole]);
 
+  // Load complaints from real backend API on mount and whenever role changes
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      try {
+        const userCreds = DEFAULT_USERS[activeRole];
+        // Ensure authenticated with backend for current active role
+        await api.login(userCreds.email, 'password123', activeRole).catch((err) => {
+          console.warn('Auto-login notice:', err.message);
+        });
+
+        const backendComplaints = await api.fetchComplaints();
+        if (isMounted && Array.isArray(backendComplaints) && backendComplaints.length > 0) {
+          setComplaints(backendComplaints);
+        }
+      } catch (err: any) {
+        console.warn('Backend fetch failed, falling back to local state:', err?.message || err);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeRole]);
+
   const currentUser = DEFAULT_USERS[activeRole];
 
-  const switchRole = (newRole: UserRole) => {
+  const switchRole = async (newRole: UserRole) => {
     setActiveRole(newRole);
     soundFX.playClick();
     setNotification(`Switched to ${newRole.toUpperCase()} View: ${DEFAULT_USERS[newRole].name}`);
+
+    try {
+      const userCreds = DEFAULT_USERS[newRole];
+      await api.login(userCreds.email, 'password123', newRole);
+      const backendComplaints = await api.fetchComplaints();
+      if (Array.isArray(backendComplaints)) {
+        setComplaints(backendComplaints);
+      }
+    } catch (err: any) {
+      console.warn('Switch role fetch error:', err?.message || err);
+    }
   };
 
   const toggleSound = () => {
@@ -435,8 +463,21 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const dismissNotification = () => setNotification(null);
 
+  const logout = () => {
+    api.clearAuthToken();
+    soundFX.playClick();
+    setNotification('Signed out of Campus Care. Please sign in to continue.');
+    setCurrentView('login');
+    window.location.hash = '#/login';
+  };
+
   const getComplaintById = (id: string) => {
-    return complaints.find(c => c.id === id || c.ticketNumber === id);
+    const found = complaints.find(c => c.id === id || c.ticketNumber === id);
+    if (found) return found;
+    if (selectedComplaint && (selectedComplaint.id === id || selectedComplaint.ticketNumber === id)) {
+      return selectedComplaint;
+    }
+    return undefined;
   };
 
   const createComplaint = (
@@ -444,12 +485,13 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ): Complaint => {
     const randomNum = Math.floor(350 + Math.random() * 600);
     const newId = `TCK-${randomNum}`;
+    const newTicketNum = `No. ${randomNum}`;
     const nowIso = new Date().toISOString();
 
     const newTicket: Complaint = {
       ...data,
       id: newId,
-      ticketNumber: `No. ${randomNum}`,
+      ticketNumber: newTicketNum,
       createdAt: nowIso,
       updatedAt: nowIso,
       timeline: [
@@ -474,7 +516,42 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ]
     };
 
+    // Optimistically update React state so UI displays ticket immediately
     setComplaints(prev => [newTicket, ...prev]);
+
+    // Persist to PostgreSQL via backend REST API
+    api.createComplaint({
+      id: newId,
+      ticketNumber: newTicketNum,
+      category: data.category,
+      title: data.title,
+      description: data.description,
+      block: data.block,
+      roomNo: data.roomNo,
+      department: data.assignedDepartment,
+      assignedDepartment: data.assignedDepartment,
+      priority: data.urgency,
+      urgency: data.urgency,
+      photos: data.photos,
+      studentName: data.studentName || currentUser.name,
+      studentRoll: data.studentRoll,
+      studentEmail: data.studentEmail || currentUser.email,
+      branch: data.branch,
+    }).then(persistedTicket => {
+      if (persistedTicket && persistedTicket.id) {
+        setComplaints(prev => {
+          const exists = prev.some(t => t.id === persistedTicket.id);
+          if (exists) {
+            return prev.map(t => (t.id === persistedTicket.id || t.id === newId) ? persistedTicket : t);
+          }
+          return [persistedTicket, ...prev.filter(t => t.id !== newId)];
+        });
+        setSelectedComplaint(prev => (prev?.id === newId || prev?.id === persistedTicket.id ? persistedTicket : prev));
+      }
+    }).catch(err => {
+      console.error('Failed to persist complaint to backend:', err);
+    });
+
     return newTicket;
   };
 
@@ -482,26 +559,26 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const nowIso = new Date().toISOString();
     soundFX.playStampThud();
 
+    const statusLabels: Record<ComplaintStatus, string> = {
+      pending: 'Status Reset to Pending',
+      in_review: 'Department Picked Up Grievance (In Review)',
+      resolved: 'Grievance Resolved & Inspected',
+      escalated: 'Ticket Escalated to Higher Authority',
+    };
+
+    const newTimelineEvent = {
+      id: `tl-${Date.now()}`,
+      status: newStatus,
+      title: statusLabels[newStatus],
+      description: remark || `Official status updated by ${currentUser.name} (${currentUser.department || 'Department Staff'}).`,
+      actor: currentUser.name,
+      actorRole: currentUser.role as 'student' | 'staff' | 'admin',
+      timestamp: nowIso,
+    };
+
     setComplaints(prev =>
       prev.map(item => {
         if (item.id === id) {
-          const statusLabels: Record<ComplaintStatus, string> = {
-            pending: 'Status Reset to Pending',
-            in_review: 'Department Picked Up Grievance (In Review)',
-            resolved: 'Grievance Resolved & Inspected',
-            escalated: 'Ticket Escalated to Higher Authority',
-          };
-
-          const newTimelineEvent = {
-            id: `tl-${Date.now()}`,
-            status: newStatus,
-            title: statusLabels[newStatus],
-            description: remark || `Official status updated by ${currentUser.name} (${currentUser.department || 'Department Staff'}).`,
-            actor: currentUser.name,
-            actorRole: currentUser.role as 'student' | 'staff' | 'admin',
-            timestamp: nowIso,
-          };
-
           return {
             ...item,
             status: newStatus,
@@ -514,6 +591,14 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
 
     setNotification(`Ticket ${id} status updated to ${newStatus.toUpperCase()}`);
+
+    // Persist to PostgreSQL backend
+    api.updateComplaint(id, {
+      status: newStatus,
+      remark,
+    }).catch(err => {
+      console.error('Failed to persist status update to backend:', err);
+    });
   };
 
   const assignStaff = (id: string, staffName: string, department: string) => {
@@ -545,6 +630,15 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return item;
       })
     );
+
+    // Persist to PostgreSQL backend
+    api.updateComplaint(id, {
+      assignedStaff: staffName,
+      department,
+      assignedDepartment: department,
+    }).catch(err => {
+      console.error('Failed to persist staff assignment to backend:', err);
+    });
   };
 
   const addComment = (complaintId: string, text: string, isInternal: boolean = false) => {
@@ -572,12 +666,32 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return item;
       })
     );
+
+    // Persist to PostgreSQL backend
+    api.updateComplaint(complaintId, {
+      comment: {
+        author: currentUser.name,
+        authorRole: currentUser.role,
+        avatar: currentUser.avatar,
+        text,
+        isInternal,
+      },
+    }).catch(err => {
+      console.error('Failed to persist comment to backend:', err);
+    });
   };
 
-  const resetDemoData = () => {
-    setComplaints(INITIAL_COMPLAINTS);
+  const resetDemoData = async () => {
     soundFX.playStampThud();
-    setNotification('Demo complaints and status stamps restored!');
+    try {
+      const backendComplaints = await api.fetchComplaints();
+      if (Array.isArray(backendComplaints)) {
+        setComplaints(backendComplaints);
+      }
+    } catch {
+      setComplaints(INITIAL_COMPLAINTS);
+    }
+    setNotification('Complaints ledger re-synchronized with server!');
   };
 
   const unreadCount = complaints.filter(c => c.status === 'pending' || c.status === 'escalated').length;
@@ -604,6 +718,7 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         resetDemoData,
         dismissNotification,
         getComplaintById,
+        logout,
       }}
     >
       {children}

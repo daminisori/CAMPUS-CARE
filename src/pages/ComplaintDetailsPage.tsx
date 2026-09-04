@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useComplaints } from '../context/ComplaintContext';
 import { Complaint, ComplaintStatus } from '../types';
 import { CATEGORIES, DEPARTMENTS } from '../constants/categories';
@@ -8,6 +8,7 @@ import { StatusStepper } from '../components/common/StatusStepper';
 import { CommentThread } from '../components/common/CommentThread';
 import { ComplaintCard } from '../components/ComplaintCard';
 import { soundFX } from '../utils/audio';
+import * as api from '../services/api';
 import { 
   ChevronRight, 
   Printer, 
@@ -34,6 +35,7 @@ export const ComplaintDetailsPage: React.FC<ComplaintDetailsPageProps> = ({
 }) => {
   const {
     getComplaintById,
+    selectedComplaint,
     currentUser,
     updateStatus,
     assignStaff,
@@ -41,12 +43,43 @@ export const ComplaintDetailsPage: React.FC<ComplaintDetailsPageProps> = ({
     setCurrentView,
   } = useComplaints();
 
-  const complaint = getComplaintById(complaintId);
+  const [fetchedComplaint, setFetchedComplaint] = useState<Complaint | null>(null);
+
+  const contextComplaint =
+    getComplaintById(complaintId) ||
+    (selectedComplaint && (selectedComplaint.id === complaintId || selectedComplaint.ticketNumber === complaintId)
+      ? selectedComplaint
+      : undefined);
+
+  useEffect(() => {
+    if (!contextComplaint && complaintId) {
+      api.fetchComplaintById(complaintId)
+        .then((data) => {
+          if (data && (data.id || data.ticketNumber)) {
+            setFetchedComplaint(data);
+          }
+        })
+        .catch((err) => {
+          console.warn('Direct ticket fetch error:', err);
+        });
+    }
+  }, [complaintId, contextComplaint]);
+
+  const complaint = contextComplaint || fetchedComplaint;
+
   const [selectedStatus, setSelectedStatus] = useState<ComplaintStatus>(complaint?.status || 'pending');
   const [statusRemark, setStatusRemark] = useState('');
   const [assigneeName, setAssigneeName] = useState(complaint?.assignedStaff || '');
   const [selectedDept, setSelectedDept] = useState(complaint?.assignedDepartment || DEPARTMENTS[0]);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  useEffect(() => {
+    if (complaint) {
+      setSelectedStatus(complaint.status);
+      setAssigneeName(complaint.assignedStaff || '');
+      setSelectedDept(complaint.assignedDepartment || DEPARTMENTS[0]);
+    }
+  }, [complaint?.id, complaint?.status, complaint?.assignedStaff, complaint?.assignedDepartment]);
 
   if (!complaint) {
     return (
